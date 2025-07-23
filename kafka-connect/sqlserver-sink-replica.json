@@ -1,0 +1,37 @@
+{
+  "name": "sqlserver-sink-replica",
+  "config": {
+    "connector.class": "io.confluent.connect.jdbc.JdbcSinkConnector",
+    "tasks.max": "1",
+
+    "topics.regex": "sqlserver-source-debezium\\.theproject\\.dbo\\.(User|Blog|BlogTag|Like|Save|Tag)",
+
+    "connection.url": "jdbc:sqlserver://host.docker.internal:1433;databaseName=theproject_replica;encrypt=false",
+    "connection.username": "admin",
+    "connection.password": "adminpass",
+
+    "insert.mode": "upsert",
+    "pk.mode": "record_value",
+    "pk.fields": "id",
+    "delete.enabled": "false",
+
+    "auto.create": "true",
+    "auto.evolve": "true",
+
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "key.converter.schemas.enable": false,
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter.schemas.enable": true,
+
+    "transforms": "unwrap,route",
+    "transforms.unwrap.type": "io.debezium.transforms.ExtractNewRecordState",
+    "transforms.unwrap.drop.tombstones": "true",
+    "transforms.unwrap.delete.handling.mode": "rewrite",
+
+    "transforms.route.type": "org.apache.kafka.connect.transforms.RegexRouter",
+    "transforms.route.regex": "sqlserver-source-debezium\\.theproject\\.dbo\\.(.*)",
+    "transforms.route.replacement": "$1",
+
+    "table.name.format": "${topic}_replica"
+  }
+}

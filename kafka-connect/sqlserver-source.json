@@ -1,0 +1,22 @@
+{
+  "name": "sqlserver-source",
+  "config": {
+    "connector.class": "io.debezium.connector.sqlserver.SqlServerConnector",
+    "database.hostname": "host.docker.internal",
+    "database.port": "1433",
+    "database.user": "admin",
+    "database.include.list": "theproject",
+    "database.password": "adminpass",
+    "database.names": "theproject",
+    "database.trustServerCertificate": "true",
+    "database.server.name": "sqlserver",
+    "snapshot.mode": "initial",
+    "table.include.list": "dbo.User,dbo.Blog,dbo.BlogTag,dbo.Like,dbo.Save,dbo.Tag",
+    "topic.prefix": "sqlserver-source-debezium",
+    "schema.history.internal.kafka.bootstrap.servers": "franz:9092",
+    "schema.history.internal.kafka.topic": "dbhistory.sqlserver",
+    "topic.creation.enable": "true",
+    "topic.creation.default.replication.factor": "1",
+    "topic.creation.default.partitions": "1"
+  }
+}

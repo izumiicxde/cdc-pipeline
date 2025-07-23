@@ -1,0 +1,29 @@
+{
+  "name": "s3-minio-sink-parquet",
+  "config": {
+    "connector.class": "io.confluent.connect.s3.S3SinkConnector",
+    "tasks.max": "1",
+    "topics.regex": "sqlserver-source-debezium\\.theproject\\.dbo\\.(User|Blog|BlogTag|Like|Save|Tag)",
+    "s3.region": "us-east-1",
+    "s3.bucket.name": "cdc-parquet-datalake",
+    "store.url": "http://minio:9000",
+    "s3.access.key.id": "minioadmin",
+    "s3.secret.access.key": "minioadmin",
+    "s3.path.style.access": "true",
+    "format.class": "io.confluent.connect.s3.format.parquet.ParquetFormat",
+    "schema.generator.class": "io.confluent.connect.s3.schema.DefaultSchemaGenerator",
+    "partitioner.class": "io.confluent.connect.storage.partitioner.TimeBasedPartitioner",
+    "path.format": "'year'=YYYY/'month'=MM/'day'=dd",
+    "flush.size": "50",
+    "partition.duration.ms": "36000000",
+    "locale": "en-US",
+    "timezone": "UTC",
+    "timestamp.extractor": "RecordField",
+    "timestamp.field": "ts_ms",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter.schemas.enable": "true",
+    "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "key.converter.schemas.enable": "true",
+    "storage.class": "io.confluent.connect.s3.storage.S3Storage"
+  }
+}

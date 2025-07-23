@@ -1,0 +1,128 @@
+services:
+  kafka:
+    image: bitnami/kafka:3.3.2
+    container_name: franz
+    ports:
+      - 9092:9092
+    networks:
+      - kafka-net
+    environment:
+      - KAFKA_ENABLE_KRAFT=yes
+      - KAFKA_CFG_PROCESS_ROLES=broker,controller
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://franz:9092
+      - KAFKA_BROKER_ID=1
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@franz:9093
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_CFG_NODE_ID=1
+      - KAFKA_KRAFT_CLUSTER_ID=MkU3OEVBNTcwNTJENDM2Qk
+      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    ports:
+      - 8080:8080
+    networks:
+      - kafka-net
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=Local Kafka
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=franz:9092
+    depends_on:
+      - kafka
+
+  kafka-connect:
+    image: confluentinc/cp-kafka-connect:7.7.0
+    container_name: kafka-connect
+    ports:
+      - 8083:8083
+    networks:
+      - kafka-net
+    volumes:
+      - ./plugins:/usr/share/confluent-hub-components
+    environment:
+      AWS_ACCESS_KEY_ID: "minioadmin"
+      AWS_SECRET_ACCESS_KEY: "minioadmin"
+      AWS_ENDPOINT_URL: "http://minio:9000"
+      AWS_S3_FORCE_PATH_STYLE: "true"
+
+      CONNECT_BOOTSTRAP_SERVERS: franz:9092
+      CONNECT_REST_PORT: 8083
+      CONNECT_GROUP_ID: kafka-connect
+      CONNECT_CONFIG_STORAGE_TOPIC: connect-config
+      CONNECT_OFFSET_STORAGE_TOPIC: connect-offsets
+      CONNECT_STATUS_STORAGE_TOPIC: connect-status
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_INTERNAL_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_INTERNAL_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_REST_ADVERTISED_HOST_NAME: kafka-connect
+      CONNECT_PLUGIN_PATH: /usr/share/confluent-hub-components
+    command: >
+      bash -c "
+        set -e
+        echo '------------------------MANUAL USER DOWNLOADS STARTS-----------------------'
+        echo 'Downloading Debezium SQL Server Connector...'
+        curl -sSL -o /tmp/debezium-sqlserver.tar.gz https://repo1.maven.org/maven2/io/debezium/debezium-connector-sqlserver/2.5.4.Final/debezium-connector-sqlserver-2.5.4.Final-plugin.tar.gz
+        mkdir -p /usr/share/confluent-hub-components/debezium-connector-sqlserver
+        tar -xzf /tmp/debezium-sqlserver.tar.gz -C /usr/share/confluent-hub-components/debezium-connector-sqlserver --strip-components=1
+
+        echo 'Downloading Debezium PostgreSQL Connector...'
+        curl -sSL -o /tmp/debezium-postgres.tar.gz https://repo1.maven.org/maven2/io/debezium/debezium-connector-postgres/2.5.4.Final/debezium-connector-postgres-2.5.4.Final-plugin.tar.gz
+        mkdir -p /usr/share/confluent-hub-components/debezium-connector-postgres
+        tar -xzf /tmp/debezium-postgres.tar.gz -C /usr/share/confluent-hub-components/debezium-connector-postgres --strip-components=1
+
+        echo 'Installing JDBC Source Connector (Confluent)...'
+        confluent-hub install --no-prompt confluentinc/kafka-connect-jdbc:latest || true
+
+        echo 'Downloading Debezium JDBC Sink Connector...'
+        curl -sSL -o /tmp/debezium-jdbc.tar.gz https://repo1.maven.org/maven2/io/debezium/debezium-connector-jdbc/2.5.4.Final/debezium-connector-jdbc-2.5.4.Final-plugin.tar.gz
+        mkdir -p /usr/share/confluent-hub-components/debezium-connector-jdbc
+        tar -xzf /tmp/debezium-jdbc.tar.gz -C /usr/share/confluent-hub-components/debezium-connector-jdbc --strip-components=1
+
+        # --- S3 SINK CONNECTOR ---
+        echo 'Installing Confluent S3 Sink Connector...'
+        confluent-hub install --no-prompt confluentinc/kafka-connect-s3:latest || true
+
+        echo '------------------------MANUAL USER DOWNLOADS ENDS-----------------------'
+        echo 'Starting Kafka Connect...'
+        /etc/confluent/docker/run
+      "
+    depends_on:
+      - kafka
+      - minio
+
+  minio:
+    image: minio/minio
+    container_name: minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - kafka-net
+
+
+volumes:
+  kafka_data:
+    driver: local
+  minio_data:
+    driver: local
+
+networks:
+  kafka-net:

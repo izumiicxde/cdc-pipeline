@@ -1,0 +1,33 @@
+{
+  "name": "postgres-confluent-jdbc-sink-audit",
+  "config": {
+    "connector.class": "io.confluent.connect.jdbc.JdbcSinkConnector",
+    "tasks.max": "1",
+    "topics.regex": "sqlserver-source-debezium\\.theproject\\.dbo\\..*",
+    "connection.url": "jdbc:postgresql://host.docker.internal:5432/theproject_audit",
+    "connection.user": "admin",
+    "connection.password": "adminpass",
+
+    "schema.evolution": "basic",
+    "insert.mode": "insert",
+
+    "auto.create": "true",
+    "auto.evolve": "true",
+    "pk.mode": "none",
+
+    "table.name.format": "${topic}_audit",
+
+    "transforms": "unwrap,route",
+    "transforms.unwrap.type": "io.debezium.transforms.ExtractNewRecordState",
+    "transforms.route.type": "org.apache.kafka.connect.transforms.RegexRouter",
+    "transforms.route.regex": "sqlserver-source-debezium\\.theproject\\.dbo\\.(.*)",
+
+    "transforms.route.replacement": "$1",
+    "transforms.unwrap.drop.tombstones": "true",
+    "transforms.unwrap.delete.handling.mode": "rewrite",
+
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter.schemas.enable": "true"
+  }
+}
