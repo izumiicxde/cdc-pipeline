@@ -1,0 +1,45 @@
+FROM confluentinc/cp-kafka-connect:7.7.0
+
+# Create plugin directory
+ENV CONNECT_PLUGIN_PATH=/usr/share/confluent-hub-components
+# Kafka Connect internal config
+ENV CONNECT_REST_PORT=8083 \
+    CONNECT_GROUP_ID=kafka-connect \
+    CONNECT_CONFIG_STORAGE_TOPIC=connect-config \
+    CONNECT_OFFSET_STORAGE_TOPIC=connect-offsets \
+    CONNECT_STATUS_STORAGE_TOPIC=connect-status \
+    CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR=1 \
+    CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR=1 \
+    CONNECT_STATUS_STORAGE_REPLICATION_FACTOR=1 \
+    CONNECT_KEY_CONVERTER=org.apache.kafka.connect.json.JsonConverter \
+    CONNECT_VALUE_CONVERTER=org.apache.kafka.connect.json.JsonConverter \
+    CONNECT_INTERNAL_KEY_CONVERTER=org.apache.kafka.connect.json.JsonConverter \
+    CONNECT_INTERNAL_VALUE_CONVERTER=org.apache.kafka.connect.json.JsonConverter \
+    CONNECT_PLUGIN_PATH=/usr/share/confluent-hub-components \
+    CONNECT_REST_ADVERTISED_HOST_NAME=kafka-connect
+
+RUN mkdir -p $CONNECT_PLUGIN_PATH
+
+# Install JDBC Source Connector (Confluent)
+RUN confluent-hub install --no-prompt confluentinc/kafka-connect-jdbc:latest
+
+# Install Confluent S3 Sink Connector
+RUN confluent-hub install --no-prompt confluentinc/kafka-connect-s3:latest
+
+# Download and extract Debezium SQL Server Connector
+RUN curl -sSL -o /tmp/debezium-sqlserver.tar.gz https://repo1.maven.org/maven2/io/debezium/debezium-connector-sqlserver/2.5.4.Final/debezium-connector-sqlserver-2.5.4.Final-plugin.tar.gz && \
+    mkdir -p $CONNECT_PLUGIN_PATH/debezium-connector-sqlserver && \
+    tar -xzf /tmp/debezium-sqlserver.tar.gz -C $CONNECT_PLUGIN_PATH/debezium-connector-sqlserver --strip-components=1 && \
+    rm /tmp/debezium-sqlserver.tar.gz
+
+# Download and extract Debezium PostgreSQL Connector
+RUN curl -sSL -o /tmp/debezium-postgres.tar.gz https://repo1.maven.org/maven2/io/debezium/debezium-connector-postgres/2.5.4.Final/debezium-connector-postgres-2.5.4.Final-plugin.tar.gz && \
+    mkdir -p $CONNECT_PLUGIN_PATH/debezium-connector-postgres && \
+    tar -xzf /tmp/debezium-postgres.tar.gz -C $CONNECT_PLUGIN_PATH/debezium-connector-postgres --strip-components=1 && \
+    rm /tmp/debezium-postgres.tar.gz
+
+# Download and extract Debezium JDBC Sink Connector
+RUN curl -sSL -o /tmp/debezium-jdbc.tar.gz https://repo1.maven.org/maven2/io/debezium/debezium-connector-jdbc/2.5.4.Final/debezium-connector-jdbc-2.5.4.Final-plugin.tar.gz && \
+    mkdir -p $CONNECT_PLUGIN_PATH/debezium-connector-jdbc && \
+    tar -xzf /tmp/debezium-jdbc.tar.gz -C $CONNECT_PLUGIN_PATH/debezium-connector-jdbc --strip-components=1 && \
+    rm /tmp/debezium-jdbc.tar.gz
