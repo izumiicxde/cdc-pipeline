@@ -19,6 +19,12 @@ services:
       - KAFKA_CFG_NODE_ID=1
       - KAFKA_KRAFT_CLUSTER_ID=MkU3OEVBNTcwNTJENDM2Qk
       - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
@@ -30,6 +36,8 @@ services:
     environment:
       - KAFKA_CLUSTERS_0_NAME=Local Kafka
       - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=franz:9092
+      - KAFKA_CLUSTERS_0_KAFKACONNECT_0_NAME=Connect
+      - KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS=http://kafka-connect:8083
     depends_on:
       - kafka
 
@@ -38,6 +46,8 @@ services:
       context: .
       dockerfile: Dockerfile-kafka-connect
     container_name: kafka-connect
+    volumes:
+      - ./plugins:/usr/share/confluent-hub-components
     ports:
       - 8083:8083
     networks:
@@ -47,6 +57,30 @@ services:
       AWS_SECRET_ACCESS_KEY: "minioadmin"
       AWS_ENDPOINT_URL: "http://minio:9000"
       AWS_S3_FORCE_PATH_STYLE: "true"
+      KAFKA_HEAP_OPTS: "-Xms512M -Xmx1G"
+        environment:
+      AWS_ACCESS_KEY_ID: "minioadmin"
+      AWS_SECRET_ACCESS_KEY: "minioadmin"
+      AWS_ENDPOINT_URL: "http://minio:9000"
+      AWS_S3_FORCE_PATH_STYLE: "true"
+      KAFKA_HEAP_OPTS: "-Xms512M -Xmx1G"
+
+      CONNECT_BOOTSTRAP_SERVERS: franz:9092
+      CONNECT_REST_PORT: 8083
+      CONNECT_GROUP_ID: kafka-connect
+      CONNECT_CONFIG_STORAGE_TOPIC: connect-config
+      CONNECT_OFFSET_STORAGE_TOPIC: connect-offsets
+      CONNECT_STATUS_STORAGE_TOPIC: connect-status
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_INTERNAL_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_INTERNAL_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_REST_ADVERTISED_HOST_NAME: kafka-connect
+      CONNECT_PLUGIN_PATH: /usr/share/confluent-hub-components
+
     depends_on:
       - kafka
       - minio
